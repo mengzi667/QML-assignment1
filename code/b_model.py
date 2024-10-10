@@ -2,7 +2,7 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
-from b_data import get_data  # import data from the data file
+from c_data_4 import get_data  # import data from different data file(jsut change the file name)
 
 
 # Define the model (using MVar, matrix form), including setting O(ɛ)-precision

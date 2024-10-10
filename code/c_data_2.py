@@ -41,7 +41,7 @@ def get_data():
     supply_limit = np.array([90, 30, 50, 70, 20])
 
     # Chromium and Nickel percentages in materials provided by suppliers
-    Cr = np.array([36, 25, 15, 14, 0])
+    Cr = np.array([20, 25, 15, 14, 0])
     Ni = np.array([0, 15, 10, 16, 10])
 
     # Required Chromium and Nickel content for each product
