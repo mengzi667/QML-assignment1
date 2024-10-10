@@ -28,7 +28,7 @@ def experiment_with_copper_limit():
         if model.status == GRB.OPTIMAL:
             electrolysis_cost = sum(100 * y[t].x for t in range(12))
             holding_cost = sum(holding_costs[i] * I[i, t].x for i in range(3) for t in range(12))
-            procurement_cost = sum(supplier_costs[j] * z[j, t].x for j in range(5) for t in range(12))
+            procurement_cost = sum(supplier_costs[s] * z[p, s, t].x for p in range(3) for s in range(5) for t in range(12))
             total_cost = electrolysis_cost + holding_cost + procurement_cost
             results.append((limit, total_cost))
 
