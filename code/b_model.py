@@ -68,6 +68,11 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
             gp.quicksum(Ni[j] * z[j, t] for j in range(n_suppliers)) == gp.quicksum(
                 Ni_required[i] * x[i, t] for i in range(n_products))
         )
+        # Balance constraint
+        model.addConstr(
+            gp.quicksum(z[j, t] for j in range(n_suppliers)) == gp.quicksum(
+                x[i, t] for i in range(n_products))
+        )
 
     # Start optimization
     model.optimize()
