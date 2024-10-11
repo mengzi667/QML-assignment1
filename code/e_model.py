@@ -2,8 +2,7 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
-from b_data import get_data  # Import data from a different data file
-
+from e_data import get_data  # Import data from a different data file
 
 # Define the model (three subscript variables), including setting precision
 def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
@@ -28,12 +27,17 @@ def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
     # z[p, s, t] - Quantity of raw material purchased from supplier s for product p in month t
     z = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="z")
 
-    return model, x, I, z
+    # y[t] - Binary variable indicating whether electrolysis is used in month t
+    y = model.addVars(n_months, vtype=GRB.BINARY, name="y")
 
+    # Cu_removed[p, s, t] - Amount of copper removed by electrolysis for product p from supplier s in month t
+    Cu_removed = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
+
+    return model, x, I, z, y, Cu_removed
 
 # Pass data to the model and solve
-def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
-                       capacity, supply_limit, Cr, Ni, Cr_required, Ni_required):
+def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, supplier_costs,
+                       capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu):
     """
     Set data into the model and add relevant constraints, then solve it.
     """
@@ -41,9 +45,10 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
     n_suppliers = len(supplier_costs)
     n_months = len(demand[0])
 
-    # Set the objective function: minimize inventory holding costs and procurement costs
+    # Set the objective function: minimize inventory holding costs, procurement costs, and electrolysis costs
     objective = gp.quicksum(holding_costs[p] * I[p, t] for p in range(n_products) for t in range(n_months)) + \
-                gp.quicksum(supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in range(n_months))
+                gp.quicksum(supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in range(n_months)) + \
+                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, s, t] for p in range(n_products) for s in range(n_suppliers)) for t in range(n_months))
     model.setObjective(objective, GRB.MINIMIZE)
 
     # Demand satisfaction constraints
@@ -81,6 +86,20 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
             gp.quicksum(x[p, t] for p in range(n_products))
         )
 
+    # Copper content constraint
+    for t in range(n_months):
+        for p in range(n_products):
+            model.addConstr(
+                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * x[p, t]
+            )
+            for s in range(n_suppliers):
+                model.addConstr(
+                    Cu_removed[p, s, t] <= Cu[s] * z[p, s, t]
+                )
+                model.addConstr(
+                    Cu_removed[p, s, t] <= y[t] * Cu[s] * z[p, s, t]
+                )
+
     # Start optimization
     model.optimize()
 
@@ -92,6 +111,8 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
         production_plan = np.zeros((n_products, n_months))
         inventory_plan = np.zeros((n_products, n_months))
         purchase_plan = np.zeros((n_products, n_suppliers, n_months))
+        electrolysis_plan = np.zeros(n_months)
+        copper_removed_plan = np.zeros((n_products, n_suppliers, n_months))
 
         # Extract production plan and inventory
         for p in range(n_products):
@@ -104,6 +125,13 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
             for s in range(n_suppliers):
                 for t in range(n_months):
                     purchase_plan[p, s, t] = z[p, s, t].x
+
+        # Extract electrolysis plan and copper removed
+        for t in range(n_months):
+            electrolysis_plan[t] = y[t].x
+            for p in range(n_products):
+                for s in range(n_suppliers):
+                    copper_removed_plan[p, s, t] = Cu_removed[p, s, t].x
 
         # Use pandas to display production, inventory, and procurement plans
         products = [f'Product {p + 1}' for p in range(n_products)]
@@ -131,17 +159,30 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
             print(f"\nProcurement Plan for {product} (kg):")
             print(purchase_df.to_string())
 
+        # Output electrolysis plan and copper removed
+        copper_removed_df = pd.DataFrame(copper_removed_plan.reshape(n_products * n_suppliers, n_months),
+                                         index=pd.MultiIndex.from_product([products, suppliers]),
+                                         columns=months)
+        electrolysis_df = pd.DataFrame({
+            'Electrolysis Used': electrolysis_plan
+        }, index=months)
+
+        print("\nElectrolysis Plan:")
+        print(electrolysis_df.to_string())
+
+        print("\nCopper Removed Plan (kg):")
+        print(copper_removed_df.to_string())
+
     else:
         print("No optimal solution found.")
-
 
 # Main function: Get data, define the model, and solve
 if __name__ == "__main__":
     # Get data
-    demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required = get_data()
+    demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu = get_data()
 
     # Define model
-    model, x, I, z = define_model(n_products=len(demand), n_suppliers=len(supplier_costs), n_months=len(demand[0]))
+    model, x, I, z, y, Cu_removed = define_model(n_products=len(demand), n_suppliers=len(supplier_costs), n_months=len(demand[0]))
 
     # Solve the model
-    set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required)
+    set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu)
