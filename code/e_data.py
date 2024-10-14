@@ -35,6 +35,6 @@ def get_data():
     Cu = np.array([0, 4, 2, 5, 3])
     Cr_required = np.array([18, 18, 18])
     Ni_required = np.array([10, 8, 0])
-    CopperLimit = np.full(n_months, 2.90)
+    CopperLimit = np.full(n_months, 2.99)
 
     return demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu
