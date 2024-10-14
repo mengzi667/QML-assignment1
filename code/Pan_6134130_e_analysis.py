@@ -31,7 +31,7 @@ sns.set(style="whitegrid")
 
 # Plotting
 plt.figure(figsize=(14, 10))
-plt.plot(df['Copper Limit'], df['Electrolysis Costs'], label='Electrolysis Costs', marker='o', linestyle='-', color='b')
+plt.plot(df['Copper Limit'], df, label='Electrolysis Costs', marker='o', linestyle='-', color='b')
 plt.plot(df['Copper Limit'], df['Holding Costs'], label='Holding Costs', marker='s', linestyle='--', color='g')
 plt.plot(df['Copper Limit'], df['Total Cost'], label='Total Cost', marker='^', linestyle='-.', color='r')
 

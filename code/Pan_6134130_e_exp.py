@@ -2,7 +2,7 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
-from e_data import get_data  # Import data from a different data file
+from Pan_6134130_e_data import get_data  # Import data from a different data file
 
 # Define the model (three subscript variables), including setting precision
 def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):

@@ -5,8 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
-from b_model1 import define_model, set_data_and_solve
-from b_data import get_data
+from Pan_6134130_b_model1 import define_model, set_data_and_solve
+from Pan_6134130_b_data import get_data
 
 
 def run_experiment(holding_cost_combinations, capacity_variations):
