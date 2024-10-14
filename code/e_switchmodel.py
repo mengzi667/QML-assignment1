@@ -61,9 +61,9 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
     for p in range(n_products):
         for t in range(n_months):
             if t == 0:
-                model.addConstr(x[p, t] + I[p, t] == demand[p][t])
+                model.addConstr(x[p, t] == demand[p][t] + I[p, t])  # Initial inventory is 0
             else:
-                model.addConstr(x[p, t] + I[p, t] == demand[p][t] + I[p, t-1])
+                model.addConstr(x[p, t] + I[p, t - 1] == demand[p][t] + I[p, t])
 
     # Production capacity constraints
     for t in range(n_months):
@@ -97,8 +97,15 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
         for t in range(n_months):
             for p in range(n_products):
                 model.addConstr(
-                    gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, s, t] <= CopperLimit[t] * y[t]
+                    gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * x[p, t]
                 )
+                for s in range(n_suppliers):
+                    model.addConstr(
+                        Cu_removed[p, s, t] <= Cu[s] * z[p, s, t]
+                    )
+                    model.addConstr(
+                        Cu_removed[p, s, t] <= y[t] * Cu[s] * z[p, s, t]
+                    )
 
     # Start optimization
     model.optimize()
@@ -106,14 +113,6 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
     # Output results
     if model.status == GRB.OPTIMAL:
         print(f"Optimal objective value: {model.objVal} EURO")
-
-        # Calculate and print electrolysis costs and holding costs
-        if include_copper:
-            electrolysis_costs = sum(100 * y[t].x + 5 * sum(Cu_removed[p, s, t].x for p in range(n_products) for s in range(n_suppliers)) for t in range(n_months))
-            print(f"Electrolysis costs: {electrolysis_costs} EURO")
-
-        total_holding_costs = sum(holding_costs[p] * I[p, t].x for p in range(n_products) for t in range(n_months))
-        print(f"Holding costs: {total_holding_costs} EURO")
 
         # Output decision variables
         production_plan = np.zeros((n_products, n_months))
@@ -171,10 +170,10 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
         if include_copper:
             # Output electrolysis plan and copper removed
             copper_removed_df = pd.DataFrame(copper_removed_plan.reshape(n_products * n_suppliers, n_months),
-                                             index=pd.MultiIndex.from_product([products, suppliers], names=['Product', 'Supplier']),
+                                             index=pd.MultiIndex.from_product([products, suppliers]),
                                              columns=months)
             electrolysis_df = pd.DataFrame({
-                'Electrolysis': electrolysis_plan
+                'Electrolysis Used': electrolysis_plan
             }, index=months)
 
             print("\nElectrolysis Plan:")

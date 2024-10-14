@@ -45,7 +45,7 @@ def get_data():
     Ni = np.array([0, 15, 10, 16, 10])
 
     # Required Chromium and Nickel content for each product
-    Cr_required = np.array([26, 18, 18])
+    Cr_required = np.array([100, 100, 100])
     Ni_required = np.array([10, 8, 0])
 
     return demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required
