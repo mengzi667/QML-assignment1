@@ -134,7 +134,7 @@ if __name__ == "__main__":
     demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu = get_data()
 
     # Original optimal value
-    original_obj_val = 9646.78
+    original_obj_val = 9646.776415571283
 
     # Find the minimum CopperLimit
     min_copper_limit = find_min_copper_limit(demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, Cu, original_obj_val)
