@@ -23,9 +23,9 @@ def get_data():
 
     # Monthly demand for each product
     demand = np.array([
-        [25, 25, 0, 0, 0, 50, 12, 0, 10, 10, 45, 99],  # 18/10
-        [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],  # 18/8
-        [5, 20, 80, 25, 50, 125, 150, 80, 40, 35, 3, 100]  # 18/0
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18/10
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18/8
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # 18/0
     ])
 
     # Inventory holding costs for each product (Euro/kg)
@@ -45,7 +45,7 @@ def get_data():
     Ni = np.array([0, 15, 10, 16, 10])
 
     # Required Chromium and Nickel content for each product
-    Cr_required = np.array([100, 100, 100])
+    Cr_required = np.array([100, 18, 18])
     Ni_required = np.array([10, 8, 0])
 
     return demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required

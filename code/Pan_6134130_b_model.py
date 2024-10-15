@@ -2,7 +2,7 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
-from Pan_6134130_b_data import get_data  # Import data from a different data file
+from Pan_6134130_b_data import get_data  # Import data from different data files (change data names)
 
 
 # Define the model (three subscript variables), including setting precision
@@ -65,21 +65,22 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
 
     # Chrome and nickel content constraints
     for t in range(n_months):
+        for p in range(n_products):
         # Chrome constraint
-        model.addConstr(
-            gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) ==
-            gp.quicksum(Cr_required[p] * x[p, t] for p in range(n_products))
-        )
-        # Nickel constraint
-        model.addConstr(
-            gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) ==
-            gp.quicksum(Ni_required[p] * x[p, t] for p in range(n_products))
-        )
+            model.addConstr(
+                gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) ==
+                Cr_required[p] * x[p, t]
+            )
+            # Nickel constraint
+            model.addConstr(
+                gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) ==
+                Ni_required[p] * x[p, t]
+            )
+            model.addConstr(
+                gp.quicksum(z[p, s, t] for s in range(n_suppliers)) == x[p, t])
         # Balance constraint: the raw material purchased should match production needs
-        model.addConstr(
-            gp.quicksum(z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) ==
-            gp.quicksum(x[p, t] for p in range(n_products))
-        )
+
+
 
     # Start optimization
     model.optimize()

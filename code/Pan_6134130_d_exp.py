@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
-from Pan_6134130_b_model1 import define_model, set_data_and_solve
+from Pan_6134130_b_model import define_model, set_data_and_solve
 from Pan_6134130_b_data import get_data
 
 
@@ -45,7 +45,7 @@ def run_experiment(holding_cost_combinations, capacity_variations):
                 'Total Cost': model.objVal if model.status == GRB.OPTIMAL else None,
                 'Production Plan': np.array([[x[i, t].x for t in range(12)] for i in range(3)]) if model.status == GRB.OPTIMAL else None,
                 'Inventory Plan': np.array([[I[i, t].x for t in range(12)] for i in range(3)]) if model.status == GRB.OPTIMAL else None,
-                'Procurement Plan': np.array([[z[j, t].x for t in range(12)] for j in range(5)]) if model.status == GRB.OPTIMAL else None
+                'Procurement Plan': np.array([[[z[i, j, t].x for t in range(12)] for j in range(5)] for i in range(3)]) if model.status == GRB.OPTIMAL else None
             }
             results.append(result)
 
@@ -128,8 +128,10 @@ def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
             inv_df.to_excel(writer, sheet_name=sheet_name, startrow=14, startcol=0)
 
             # Write procurement plan
-            proc_df = pd.DataFrame(result['Procurement Plan'], index=['A', 'B', 'C', 'D', 'E'], columns=[f'Month {i+1}' for i in range(12)])
-            proc_df.to_excel(writer, sheet_name=sheet_name, startrow=20, startcol=0)
+            proc_plan = result['Procurement Plan']
+            for p in range(proc_plan.shape[0]):
+                proc_df = pd.DataFrame(proc_plan[p], index=['Supplier A', 'Supplier B', 'Supplier C', 'Supplier D', 'Supplier E'], columns=[f'Month {i+1}' for i in range(12)])
+                proc_df.to_excel(writer, sheet_name=sheet_name, startrow=20 + p * 8, startcol=0)
 
     writer.close()
 
