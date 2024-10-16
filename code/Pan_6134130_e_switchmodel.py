@@ -62,6 +62,42 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs, ca
 
     if model.status == GRB.OPTIMAL:
         print(f"Optimal objective value: {model.objVal} EURO")
+
+        production_plan = np.zeros((n_products, n_months))
+        inventory_plan = np.zeros((n_products, n_months))
+        purchase_plan = np.zeros((n_products, n_suppliers, n_months))
+
+        for p in range(n_products):
+            for t in range(n_months):
+                production_plan[p, t] = x[p, t].x
+                inventory_plan[p, t] = I[p, t].x
+
+        for p in range(n_products):
+            for s in range(n_suppliers):
+                for t in range(n_months):
+                    purchase_plan[p, s, t] = z[p, s, t].x
+
+        products = [f'Product {p + 1}' for p in range(n_products)]
+        suppliers = [f'Supplier {s + 1}' for s in range(n_suppliers)]
+        months = [f'Month {t + 1}' for t in range(n_months)]
+
+        production_df = pd.DataFrame(production_plan, index=products, columns=months)
+        inventory_df = pd.DataFrame(inventory_plan, index=products, columns=months)
+
+        purchase_df_dict = {}
+        for p in range(n_products):
+            purchase_df_dict[products[p]] = pd.DataFrame(purchase_plan[p], index=suppliers, columns=months)
+
+        print("\nProduction Plan (kg):")
+        print(production_df.to_string())
+
+        print("\nInventory Plan (kg):")
+        print(inventory_df.to_string())
+
+        for product, purchase_df in purchase_df_dict.items():
+            print(f"\nProcurement Plan for {product} (kg):")
+            print(purchase_df.to_string())
+
     else:
         print("No optimal solution found.")
 
@@ -106,6 +142,63 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
     if model.status == GRB.OPTIMAL:
         print(f"Optimal objective value: {model.objVal} EURO")
+
+        production_plan = np.zeros((n_products, n_months))
+        inventory_plan = np.zeros((n_products, n_months))
+        purchase_plan = np.zeros((n_products, n_suppliers, n_months))
+        electrolysis_plan = np.zeros(n_months)
+        copper_removed_plan = np.zeros((n_products, n_suppliers, n_months))
+
+        for p in range(n_products):
+            for t in range(n_months):
+                production_plan[p, t] = x[p, t].x
+                inventory_plan[p, t] = I[p, t].x
+
+        for p in range(n_products):
+            for s in range(n_suppliers):
+                for t in range(n_months):
+                    purchase_plan[p, s, t] = z[p, s, t].x
+
+        for t in range(n_months):
+            electrolysis_plan[t] = y[t].x
+            for p in range(n_products):
+                for s in range(n_suppliers):
+                    copper_removed_plan[p, s, t] = Cu_removed[p, s, t].x
+
+        products = [f'Product {p + 1}' for p in range(n_products)]
+        suppliers = [f'Supplier {s + 1}' for s in range(n_suppliers)]
+        months = [f'Month {t + 1}' for t in range(n_months)]
+
+        production_df = pd.DataFrame(production_plan, index=products, columns=months)
+        inventory_df = pd.DataFrame(inventory_plan, index=products, columns=months)
+
+        purchase_df_dict = {}
+        for p in range(n_products):
+            purchase_df_dict[products[p]] = pd.DataFrame(purchase_plan[p], index=suppliers, columns=months)
+
+        copper_removed_df = pd.DataFrame(copper_removed_plan.reshape(n_products * n_suppliers, n_months),
+                                         index=pd.MultiIndex.from_product([products, suppliers]),
+                                         columns=months)
+        electrolysis_df = pd.DataFrame({
+            'Electrolysis Used': electrolysis_plan
+        }, index=months)
+
+        print("\nProduction Plan (kg):")
+        print(production_df.to_string())
+
+        print("\nInventory Plan (kg):")
+        print(inventory_df.to_string())
+
+        for product, purchase_df in purchase_df_dict.items():
+            print(f"\nProcurement Plan for {product} (kg):")
+            print(purchase_df.to_string())
+
+        print("\nElectrolysis Plan:")
+        print(electrolysis_df.to_string())
+
+        print("\nCopper Removed Plan (kg):")
+        print(copper_removed_df.to_string())
+
     else:
         print("No optimal solution found.")
 
