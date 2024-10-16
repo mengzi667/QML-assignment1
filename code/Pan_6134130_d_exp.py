@@ -1,4 +1,3 @@
-import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
@@ -6,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
 from Pan_6134130_b_model import define_model, set_data_and_solve
-from Pan_6134130_b_data import get_data
+from code.Pan_6134130_b_data import get_data
 
 
 def run_experiment(holding_cost_combinations, capacity_variations):
