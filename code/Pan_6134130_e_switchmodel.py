@@ -133,7 +133,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
     for t in range(n_months):
         for p in range(n_products):
-            model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * x[p, t])
+            model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * (x[p, t]-gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers))))
             for s in range(n_suppliers):
                 model.addConstr(Cu_removed[p, s, t] <= Cu[s] * z[p, s, t])
                 model.addConstr(Cu_removed[p, s, t] <= y[t] * Cu[s] * z[p, s, t])
@@ -148,11 +148,14 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
         purchase_plan = np.zeros((n_products, n_suppliers, n_months))
         electrolysis_plan = np.zeros(n_months)
         copper_removed_plan = np.zeros((n_products, n_suppliers, n_months))
+        holding_costs_total = 0
+        electrolysis_costs_total = 0
 
         for p in range(n_products):
             for t in range(n_months):
                 production_plan[p, t] = x[p, t].x
                 inventory_plan[p, t] = I[p, t].x
+                holding_costs_total += holding_costs[p] * I[p, t].x
 
         for p in range(n_products):
             for s in range(n_suppliers):
@@ -161,6 +164,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
         for t in range(n_months):
             electrolysis_plan[t] = y[t].x
+            electrolysis_costs_total += 100 * y[t].x
             for p in range(n_products):
                 for s in range(n_suppliers):
                     copper_removed_plan[p, s, t] = Cu_removed[p, s, t].x
@@ -198,6 +202,9 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
         print("\nCopper Removed Plan (kg):")
         print(copper_removed_df.to_string())
+
+        print(f"\nTotal Holding Costs: {holding_costs_total} EURO")
+        print(f"Total Electrolysis Costs: {electrolysis_costs_total} EURO")
 
     else:
         print("No optimal solution found.")

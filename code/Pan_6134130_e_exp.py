@@ -90,7 +90,7 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
     for t in range(n_months):
         for p in range(n_products):
             model.addConstr(
-                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * x[p, t]
+                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * (x[p, t]-gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)))
             )
             for s in range(n_suppliers):
                 model.addConstr(
