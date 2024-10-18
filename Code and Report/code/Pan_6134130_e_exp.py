@@ -30,8 +30,8 @@ def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
     # y[t] - Binary variable indicating whether electrolysis is used in month t
     y = model.addVars(n_months, vtype=GRB.BINARY, name="y")
 
-    # Cu_removed[p, s, t] - Amount of copper removed by electrolysis for product p from supplier s in month t
-    Cu_removed = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
+    # Cu_removed[p, t] - Amount of copper removed by electrolysis for product p in month t
+    Cu_removed = model.addVars(n_products, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
 
     return model, x, I, z, y, Cu_removed
 
@@ -48,16 +48,16 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
     # Set the objective function: minimize inventory holding costs, procurement costs, and electrolysis costs
     objective = gp.quicksum(holding_costs[p] * I[p, t] for p in range(n_products) for t in range(n_months)) + \
                 gp.quicksum(supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in range(n_months)) + \
-                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, s, t] for p in range(n_products) for s in range(n_suppliers)) for t in range(n_months))
+                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, t] for p in range(n_products)) for t in range(n_months))
     model.setObjective(objective, GRB.MINIMIZE)
 
     # Demand satisfaction constraints
     for p in range(n_products):
         for t in range(n_months):
             if t == 0:
-                model.addConstr(x[p, t] == demand[p][t] + I[p, t])  # Initial inventory is 0
+                model.addConstr((x[p, t] - Cu_removed[p, t]) == demand[p][t] + I[p, t])  # Initial inventory is 0
             else:
-                model.addConstr(x[p, t] + I[p, t - 1] == demand[p][t] + I[p, t])
+                model.addConstr((x[p, t] - Cu_removed[p, t]) + I[p, t - 1] == demand[p][t] + I[p, t])
 
     # Production capacity constraints
     for t in range(n_months):
@@ -73,12 +73,12 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
         # Chrome constraint
         model.addConstr(
             gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) ==
-            gp.quicksum(Cr_required[p] * x[p, t] for p in range(n_products))
+            gp.quicksum(Cr_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products))
         )
         # Nickel constraint
         model.addConstr(
             gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) ==
-            gp.quicksum(Ni_required[p] * x[p, t] for p in range(n_products))
+            gp.quicksum(Ni_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products))
         )
         # Balance constraint: the raw material purchased should match production needs
         model.addConstr(
@@ -90,14 +90,11 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
     for t in range(n_months):
         for p in range(n_products):
             model.addConstr(
-                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * (x[p, t]-gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)))
+                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit * (x[p, t] - Cu_removed[p, t])
             )
             for s in range(n_suppliers):
                 model.addConstr(
-                    Cu_removed[p, s, t] <= Cu[s] * z[p, s, t]
-                )
-                model.addConstr(
-                    Cu_removed[p, s, t] <= y[t] * Cu[s] * z[p, s, t]
+                    Cu_removed[p, t] <= y[t] * Cu[s] * z[p, s, t]
                 )
 
     # Start optimization
@@ -119,8 +116,9 @@ def find_min_copper_limit(demand, holding_costs, supplier_costs, capacity, suppl
 
     while high - low > 1e-6:  # Precision threshold
         mid = (low + high) / 2
-        obj_val, feasible = set_data_and_solve(*define_model(len(demand), len(supplier_costs), len(demand[0])), demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, [mid]*len(demand[0]), Cu)
-        if feasible and obj_val <= original_obj_val:
+        model, x, I, z, y, Cu_removed = define_model(len(demand), len(supplier_costs), len(demand[0]))
+        obj_val, optimal = set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, mid, Cu)
+        if optimal and obj_val <= original_obj_val:
             best_limit = mid
             high = mid
         else:

@@ -25,7 +25,7 @@ def define_model_with_copper(n_products, n_suppliers, n_months, tolerance=1e-6):
     I = model.addVars(n_products, n_months, vtype=GRB.CONTINUOUS, name="I")
     z = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="z")
     y = model.addVars(n_months, vtype=GRB.BINARY, name="y")
-    Cu_removed = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
+    Cu_removed = model.addVars(n_products, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
 
     return model, x, I, z, y, Cu_removed
 
@@ -108,16 +108,16 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
     objective = gp.quicksum(holding_costs[p] * I[p, t] for p in range(n_products) for t in range(n_months)) + \
                 gp.quicksum(supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in range(n_months)) + \
-                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, s, t] for p in range(n_products) for s in range(n_suppliers)) for t in range(n_months))
+                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, t] for p in range(n_products)) for t in range(n_months))
 
     model.setObjective(objective, GRB.MINIMIZE)
 
     for p in range(n_products):
         for t in range(n_months):
             if t == 0:
-                model.addConstr(x[p, t] == demand[p][t] + I[p, t])
+                model.addConstr((x[p, t] - Cu_removed[p, t]) == demand[p][t] + I[p, t])
             else:
-                model.addConstr(x[p, t] + I[p, t - 1] == demand[p][t] + I[p, t])
+                model.addConstr((x[p, t] - Cu_removed[p, t]) + I[p, t - 1] == demand[p][t] + I[p, t])
 
     for t in range(n_months):
         model.addConstr(gp.quicksum(x[p, t] for p in range(n_products)) <= capacity[t])
@@ -127,16 +127,16 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
             model.addConstr(gp.quicksum(z[p, s, t] for p in range(n_products)) <= supply_limit[s])
 
     for t in range(n_months):
-        model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Cr_required[p] * x[p, t] for p in range(n_products)))
-        model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Ni_required[p] * x[p, t] for p in range(n_products)))
+        model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Cr_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
+        model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Ni_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
         model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(x[p, t] for p in range(n_products)))
 
     for t in range(n_months):
         for p in range(n_products):
-            model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers)) <= CopperLimit[t] * (x[p, t]-gp.quicksum(Cu_removed[p, s, t] for s in range(n_suppliers))))
+            model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit[t] * (x[p, t] - Cu_removed[p, t]))
             for s in range(n_suppliers):
-                model.addConstr(Cu_removed[p, s, t] <= Cu[s] * z[p, s, t])
-                model.addConstr(Cu_removed[p, s, t] <= y[t] * Cu[s] * z[p, s, t])
+                model.addConstr(Cu_removed[p, t] <= Cu[s] * z[p, s, t])
+                model.addConstr(Cu_removed[p, t] <= y[t] * Cu[s] * z[p, s, t])
 
     model.optimize()
 
@@ -147,7 +147,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
         inventory_plan = np.zeros((n_products, n_months))
         purchase_plan = np.zeros((n_products, n_suppliers, n_months))
         electrolysis_plan = np.zeros(n_months)
-        copper_removed_plan = np.zeros((n_products, n_suppliers, n_months))
+        copper_removed_plan = np.zeros((n_products, n_months))
         holding_costs_total = 0
         electrolysis_costs_total = 0
 
@@ -166,8 +166,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
             electrolysis_plan[t] = y[t].x
             electrolysis_costs_total += 100 * y[t].x
             for p in range(n_products):
-                for s in range(n_suppliers):
-                    copper_removed_plan[p, s, t] = Cu_removed[p, s, t].x
+                copper_removed_plan[p, t] = Cu_removed[p, t].x
 
         products = [f'Product {p + 1}' for p in range(n_products)]
         suppliers = [f'Supplier {s + 1}' for s in range(n_suppliers)]
@@ -180,9 +179,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
         for p in range(n_products):
             purchase_df_dict[products[p]] = pd.DataFrame(purchase_plan[p], index=suppliers, columns=months)
 
-        copper_removed_df = pd.DataFrame(copper_removed_plan.reshape(n_products * n_suppliers, n_months),
-                                         index=pd.MultiIndex.from_product([products, suppliers]),
-                                         columns=months)
+        copper_removed_df = pd.DataFrame(copper_removed_plan, index=products, columns=months)
         electrolysis_df = pd.DataFrame({
             'Electrolysis Used': electrolysis_plan
         }, index=months)
