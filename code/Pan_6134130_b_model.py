@@ -2,7 +2,7 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
-from Pan_6134130_data import get_data_b  # Import from different data (change data names)
+from Pan_6134130_data import get_data_c_4  # Import from different data (change data names)
 
 
 # Define the model (three subscript variables), including setting precision
@@ -139,7 +139,7 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs,
 # Main function: Get data, define the model, and solve
 if __name__ == "__main__":
     # Get data
-    demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required = get_data_b()# Change data name here
+    demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required = get_data_c_4()# Change data name here
 
     # Define model
     model, x, I, z = define_model(n_products=len(demand), n_suppliers=len(supplier_costs), n_months=len(demand[0]))
