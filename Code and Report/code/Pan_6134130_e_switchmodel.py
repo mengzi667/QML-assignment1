@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from Pan_6134130_data import get_data_b, get_data_e
 
+
 # Define the model (three subscript variables), including setting precision
 def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
     model = gp.Model('Three_Subscript_Model')
@@ -15,6 +16,7 @@ def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
     z = model.addVars(n_products, n_suppliers, n_months, vtype=GRB.CONTINUOUS, name="z")
 
     return model, x, I, z
+
 
 def define_model_with_copper(n_products, n_suppliers, n_months, tolerance=1e-6):
     model = gp.Model('Three_Subscript_Model_With_Copper')
@@ -28,6 +30,7 @@ def define_model_with_copper(n_products, n_suppliers, n_months, tolerance=1e-6):
     Cu_removed = model.addVars(n_products, n_months, vtype=GRB.CONTINUOUS, name="Cu_removed")
 
     return model, x, I, z, y, Cu_removed
+
 
 def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required):
     n_products = len(demand)
@@ -101,6 +104,7 @@ def set_data_and_solve(model, x, I, z, demand, holding_costs, supplier_costs, ca
     else:
         print("No optimal solution found.")
 
+
 def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu):
     n_products = len(demand)
     n_suppliers = len(supplier_costs)
@@ -127,16 +131,16 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
             model.addConstr(gp.quicksum(z[p, s, t] for p in range(n_products)) <= supply_limit[s])
 
     for t in range(n_months):
-        model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Cr_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
-        model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Ni_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
-        model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(x[p, t] for p in range(n_products)))
-
-    for t in range(n_months):
         for p in range(n_products):
-            model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit[t] * (x[p, t] - Cu_removed[p, t]))
-            for s in range(n_suppliers):
-                model.addConstr(Cu_removed[p, t] <= Cu[s] * z[p, s, t])
-                model.addConstr(Cu_removed[p, t] <= y[t] * Cu[s] * z[p, s, t])
+            model.addConstr(
+                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit[t] * (
+                            x[p, t] - Cu_removed[p, t]))
+            model.addConstr(Cu_removed[p, t] <= y[t] * gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)))
+            model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers)) == x[p, t])
+            model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) == Cr_required[p] * (
+                        x[p, t] - Cu_removed[p, t]))
+            model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) == Ni_required[p] * (
+                        x[p, t] - Cu_removed[p, t]))
 
     model.optimize()
 
@@ -205,6 +209,7 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
 
     else:
         print("No optimal solution found.")
+
 
 if __name__ == "__main__":
     model_choice = input("Enter 'b' to run the basic model or 'e' to run the model with copper: ").strip().lower()

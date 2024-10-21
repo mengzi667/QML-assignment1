@@ -85,6 +85,7 @@ def plot_total_cost_heatmap(results):
     fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
     plt.show()
 
+
 def plot_holding_cost_heatmap(results):
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(3, 3, figsize=(24, 24))
@@ -114,6 +115,7 @@ def plot_holding_cost_heatmap(results):
     fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
     plt.show()
 
+
 def plot_procurement_cost_heatmap(results):
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(3, 3, figsize=(24, 24))
@@ -142,6 +144,8 @@ def plot_procurement_cost_heatmap(results):
     plt.tight_layout()
     fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
     plt.show()
+
+
 def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
     """
     Exports the results of the experiments to an Excel file.
@@ -192,6 +196,7 @@ def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
 
     writer.close()
 
+
 def main():
     """
     Main function to run the experiments, plot the results, and export them to an Excel file.
@@ -215,6 +220,7 @@ def main():
 
     # Export detailed results to an Excel file
     export_results_to_excel(results, 'd_detailed_results.xlsx')
+
 
 if __name__ == "__main__":
     main()

@@ -167,17 +167,12 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
             model.addConstr(gp.quicksum(z[p, s, t] for p in range(n_products)) <= supply_limit[s])
 
     for t in range(n_months):
-        model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Cr_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
-        model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(Ni_required[p] * (x[p, t] - Cu_removed[p, t]) for p in range(n_products)))
-        model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers) for p in range(n_products)) == gp.quicksum(x[p, t] for p in range(n_products)))
-
-    for t in range(n_months):
         for p in range(n_products):
             model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit[t] * (x[p, t] - Cu_removed[p, t]))
-            for s in range(n_suppliers):
-                model.addConstr(Cu_removed[p, t] <= Cu[s] * z[p, s, t])
-                model.addConstr(Cu_removed[p, t] <= y[t] * Cu[s] * z[p, s, t])
-
+            model.addConstr(Cu_removed[p, t] <= y[t] * gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)))
+            model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers)) == x[p, t])
+            model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) == Cr_required[p] * (x[p, t] - Cu_removed[p, t]))
+            model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) == Ni_required[p] * (x[p, t] - Cu_removed[p, t]))
     model.optimize()
 
     if model.status == GRB.OPTIMAL:
