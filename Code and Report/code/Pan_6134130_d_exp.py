@@ -56,20 +56,13 @@ def run_experiment(holding_cost_combinations, capacity_variations):
 
     return results
 
-
 def plot_total_cost_heatmap(results):
-    """
-    Plots the total cost heatmap of the experiments.
-
-    Args:
-        results (DataFrame): DataFrame containing the results of the experiments.
-    """
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(3, 3, figsize=(24, 24))
     fig.suptitle('Total Cost under Different Holding Costs and Capacities', fontsize=24, y=1.02)
-    cmap = sns.color_palette("YlOrRd", as_cmap=True)
     product_types = ['18/10', '18/8', '18/0']
     vmin, vmax = results['Total Cost'].min(), results['Total Cost'].max()
+    cmap = sns.color_palette("coolwarm", as_cmap=True)  # Consistent color palette for this heatmap
 
     for i, capacity in enumerate([50, 100, 150]):
         data = results[results['Capacity'] == capacity]
@@ -93,18 +86,12 @@ def plot_total_cost_heatmap(results):
     plt.show()
 
 def plot_holding_cost_heatmap(results):
-    """
-    Plots the holding cost heatmap of the experiments.
-
-    Args:
-        results (DataFrame): DataFrame containing the results of the experiments.
-    """
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(3, 3, figsize=(24, 24))
     fig.suptitle('Holding Cost under Different Holding Costs and Capacities', fontsize=24, y=1.02)
-    cmap = sns.color_palette("YlOrRd", as_cmap=True)
     product_types = ['18/10', '18/8', '18/0']
     vmin, vmax = results['Holding Cost Total'].min(), results['Holding Cost Total'].max()
+    cmap = sns.color_palette("viridis", as_cmap=True)  # Consistent color palette for this heatmap
 
     for i, capacity in enumerate([50, 100, 150]):
         data = results[results['Capacity'] == capacity]
@@ -128,18 +115,12 @@ def plot_holding_cost_heatmap(results):
     plt.show()
 
 def plot_procurement_cost_heatmap(results):
-    """
-    Plots the procurement cost heatmap of the experiments.
-
-    Args:
-        results (DataFrame): DataFrame containing the results of the experiments.
-    """
     sns.set_style("whitegrid")
     fig, axes = plt.subplots(3, 3, figsize=(24, 24))
     fig.suptitle('Procurement Cost under Different Holding Costs and Capacities', fontsize=24, y=1.02)
-    cmap = sns.color_palette("YlOrRd", as_cmap=True)
     product_types = ['18/10', '18/8', '18/0']
     vmin, vmax = results['Procurement Cost Total'].min(), results['Procurement Cost Total'].max()
+    cmap = sns.color_palette("plasma", as_cmap=True)  # Consistent color palette for this heatmap
 
     for i, capacity in enumerate([50, 100, 150]):
         data = results[results['Capacity'] == capacity]
@@ -161,7 +142,6 @@ def plot_procurement_cost_heatmap(results):
     plt.tight_layout()
     fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
     plt.show()
-
 def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
     """
     Exports the results of the experiments to an Excel file.
