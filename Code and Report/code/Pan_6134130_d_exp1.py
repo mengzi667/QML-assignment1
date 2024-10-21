@@ -1,4 +1,3 @@
-# Import necessary libraries
 from gurobipy import GRB
 import numpy as np
 import pandas as pd
@@ -7,6 +6,7 @@ import seaborn as sns
 from itertools import product
 from Pan_6134130_b_model import define_model, set_data_and_solve
 from Pan_6134130_data import get_data_b
+
 
 def run_experiment(holding_cost_combinations, capacity_variations):
     """
@@ -35,10 +35,6 @@ def run_experiment(holding_cost_combinations, capacity_variations):
             set_data_and_solve(model, x, I, z, demand, adjusted_holding_costs, supplier_costs,
                                adjusted_capacity, supply_limit, Cr, Ni, Cr_required, Ni_required)
 
-            # Calculate holding and procurement costs
-            holding_cost_total = sum(adjusted_holding_costs[p] * I[p, t].x for p in range(3) for t in range(12)) if model.status == GRB.OPTIMAL else None
-            procurement_cost_total = sum(supplier_costs[s] * z[p, s, t].x for p in range(3) for s in range(5) for t in range(12)) if model.status == GRB.OPTIMAL else None
-
             # Collect results for the current experiment
             result = {
                 'Holding Cost 18/10': holding_costs[0],
@@ -46,8 +42,6 @@ def run_experiment(holding_cost_combinations, capacity_variations):
                 'Holding Cost 18/0': holding_costs[2],
                 'Capacity': capacity,
                 'Total Cost': model.objVal if model.status == GRB.OPTIMAL else None,
-                'Holding Cost Total': holding_cost_total,
-                'Procurement Cost Total': procurement_cost_total,
                 'Production Plan': np.array([[x[i, t].x for t in range(12)] for i in range(3)]) if model.status == GRB.OPTIMAL else None,
                 'Inventory Plan': np.array([[I[i, t].x for t in range(12)] for i in range(3)]) if model.status == GRB.OPTIMAL else None,
                 'Procurement Plan': np.array([[[z[i, j, t].x for t in range(12)] for j in range(5)] for i in range(3)]) if model.status == GRB.OPTIMAL else None
@@ -57,9 +51,9 @@ def run_experiment(holding_cost_combinations, capacity_variations):
     return results
 
 
-def plot_total_cost_heatmap(results):
+def plot_results(results):
     """
-    Plots the total cost heatmap of the experiments.
+    Plots the results of the experiments.
 
     Args:
         results (DataFrame): DataFrame containing the results of the experiments.
@@ -71,6 +65,7 @@ def plot_total_cost_heatmap(results):
     product_types = ['18/10', '18/8', '18/0']
     vmin, vmax = results['Total Cost'].min(), results['Total Cost'].max()
 
+    # Plot heatmaps for each capacity and product type
     for i, capacity in enumerate([50, 100, 150]):
         data = results[results['Capacity'] == capacity]
         for j, product in enumerate(product_types):
@@ -92,75 +87,6 @@ def plot_total_cost_heatmap(results):
     fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
     plt.show()
 
-def plot_holding_cost_heatmap(results):
-    """
-    Plots the holding cost heatmap of the experiments.
-
-    Args:
-        results (DataFrame): DataFrame containing the results of the experiments.
-    """
-    sns.set_style("whitegrid")
-    fig, axes = plt.subplots(3, 3, figsize=(24, 24))
-    fig.suptitle('Holding Cost under Different Holding Costs and Capacities', fontsize=24, y=1.02)
-    cmap = sns.color_palette("YlOrRd", as_cmap=True)
-    product_types = ['18/10', '18/8', '18/0']
-    vmin, vmax = results['Holding Cost Total'].min(), results['Holding Cost Total'].max()
-
-    for i, capacity in enumerate([50, 100, 150]):
-        data = results[results['Capacity'] == capacity]
-        for j, product in enumerate(product_types):
-            other_products = [p for p in product_types if p != product]
-            pivot_data = data.pivot(index=f'Holding Cost {product}',
-                                    columns=[f'Holding Cost {op}' for op in other_products],
-                                    values='Holding Cost Total')
-            sns.heatmap(pivot_data, ax=axes[i, j], annot=True, fmt='.0f', cmap=cmap,
-                        cbar=True, square=True, linewidths=0.5,
-                        annot_kws={'fontsize': 10}, vmin=vmin, vmax=vmax)
-            axes[i, j].set_title(f'Capacity: {capacity}, Product: {product}', fontsize=16, pad=20)
-            axes[i, j].set_xlabel(f'Holding Cost of Other Products', fontsize=12, labelpad=10)
-            axes[i, j].set_ylabel(f'Holding Cost of {product}', fontsize=12, labelpad=10)
-            axes[i, j].tick_params(axis='both', which='major', labelsize=10)
-            axes[i, j].set_xticklabels(axes[i, j].get_xticklabels(), rotation=45, ha='right')
-            axes[i, j].collections[0].colorbar.set_label('Holding Cost Total', fontsize=12, labelpad=10)
-
-    plt.tight_layout()
-    fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
-    plt.show()
-
-def plot_procurement_cost_heatmap(results):
-    """
-    Plots the procurement cost heatmap of the experiments.
-
-    Args:
-        results (DataFrame): DataFrame containing the results of the experiments.
-    """
-    sns.set_style("whitegrid")
-    fig, axes = plt.subplots(3, 3, figsize=(24, 24))
-    fig.suptitle('Procurement Cost under Different Holding Costs and Capacities', fontsize=24, y=1.02)
-    cmap = sns.color_palette("YlOrRd", as_cmap=True)
-    product_types = ['18/10', '18/8', '18/0']
-    vmin, vmax = results['Procurement Cost Total'].min(), results['Procurement Cost Total'].max()
-
-    for i, capacity in enumerate([50, 100, 150]):
-        data = results[results['Capacity'] == capacity]
-        for j, product in enumerate(product_types):
-            other_products = [p for p in product_types if p != product]
-            pivot_data = data.pivot(index=f'Holding Cost {product}',
-                                    columns=[f'Holding Cost {op}' for op in other_products],
-                                    values='Procurement Cost Total')
-            sns.heatmap(pivot_data, ax=axes[i, j], annot=True, fmt='.0f', cmap=cmap,
-                        cbar=True, square=True, linewidths=0.5,
-                        annot_kws={'fontsize': 10}, vmin=vmin, vmax=vmax)
-            axes[i, j].set_title(f'Capacity: {capacity}, Product: {product}', fontsize=16, pad=20)
-            axes[i, j].set_xlabel(f'Holding Cost of Other Products', fontsize=12, labelpad=10)
-            axes[i, j].set_ylabel(f'Holding Cost of {product}', fontsize=12, labelpad=10)
-            axes[i, j].tick_params(axis='both', which='major', labelsize=10)
-            axes[i, j].set_xticklabels(axes[i, j].get_xticklabels(), rotation=45, ha='right')
-            axes[i, j].collections[0].colorbar.set_label('Procurement Cost Total', fontsize=12, labelpad=10)
-
-    plt.tight_layout()
-    fig.subplots_adjust(top=0.95, wspace=0.3, hspace=0.4)
-    plt.show()
 
 def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
     """
@@ -191,26 +117,23 @@ def export_results_to_excel(results, filename='d_detailed_results.xlsx'):
             worksheet.write('B5', result['Capacity'])
             worksheet.write('A6', 'Total Cost')
             worksheet.write('B6', result['Total Cost'])
-            worksheet.write('A7', 'Holding Cost Total')
-            worksheet.write('B7', result['Holding Cost Total'])
-            worksheet.write('A8', 'Procurement Cost Total')
-            worksheet.write('B8', result['Procurement Cost Total'])
 
             # Write production plan
             prod_df = pd.DataFrame(result['Production Plan'], index=['18/10', '18/8', '18/0'], columns=[f'Month {i+1}' for i in range(12)])
-            prod_df.to_excel(writer, sheet_name=sheet_name, startrow=10, startcol=0)
+            prod_df.to_excel(writer, sheet_name=sheet_name, startrow=8, startcol=0)
 
             # Write inventory plan
             inv_df = pd.DataFrame(result['Inventory Plan'], index=['18/10', '18/8', '18/0'], columns=[f'Month {i+1}' for i in range(12)])
-            inv_df.to_excel(writer, sheet_name=sheet_name, startrow=16, startcol=0)
+            inv_df.to_excel(writer, sheet_name=sheet_name, startrow=14, startcol=0)
 
             # Write procurement plan
             proc_plan = result['Procurement Plan']
             for p in range(proc_plan.shape[0]):
                 proc_df = pd.DataFrame(proc_plan[p], index=['Supplier A', 'Supplier B', 'Supplier C', 'Supplier D', 'Supplier E'], columns=[f'Month {i+1}' for i in range(12)])
-                proc_df.to_excel(writer, sheet_name=sheet_name, startrow=22 + p * 8, startcol=0)
+                proc_df.to_excel(writer, sheet_name=sheet_name, startrow=20 + p * 8, startcol=0)
 
     writer.close()
+
 
 def main():
     """
@@ -229,12 +152,11 @@ def main():
     results_df.to_excel('summary_output.xlsx', index=False)
 
     # Plot the results
-    plot_total_cost_heatmap(results_df)
-    plot_holding_cost_heatmap(results_df)
-    plot_procurement_cost_heatmap(results_df)
+    plot_results(results_df)
 
     # Export detailed results to an Excel file
     export_results_to_excel(results, 'd_detailed_results.xlsx')
+
 
 if __name__ == "__main__":
     main()
