@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Read data from Excel file
-file_path = 'e_result.xlsx'
+file_path = '../data/e_result.xlsx'
 df = pd.read_excel(file_path, sheet_name='Sheet1', header=None)  # Read without header
 
 # Use the first row as the x-axis

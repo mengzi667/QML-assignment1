@@ -219,7 +219,7 @@ def main():
     plot_procurement_cost_heatmap(results_df)
 
     # Export detailed results to an Excel file
-    export_results_to_excel(results, 'd_detailed_results.xlsx')
+    export_results_to_excel(results, '../data/d_detailed_results.xlsx')
 
 
 if __name__ == "__main__":
