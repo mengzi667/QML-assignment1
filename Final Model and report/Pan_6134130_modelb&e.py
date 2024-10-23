@@ -41,7 +41,7 @@ def get_data_e():
     Cu = np.array([0, 4, 2, 5, 3])
     Cr_required = np.array([18, 18, 18])
     Ni_required = np.array([10, 8, 0])
-    CopperLimit = np.full(n_months, 1.8335)# change copper limit here
+    CopperLimit = np.full(n_months, 2.966)# change copper limit here
 
     return demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu
 
@@ -169,7 +169,8 @@ def set_data_and_solve_with_copper(model, x, I, z, y, Cu_removed, demand, holdin
     for t in range(n_months):
         for p in range(n_products):
             model.addConstr(gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit[t] * (x[p, t] - Cu_removed[p, t]))
-            model.addConstr(Cu_removed[p, t] <= y[t] * gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)))
+            model.addConstr(Cu_removed[p, t] <= y[t] * 10000)
+            model.addConstr(Cu_removed[p, t] <= gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)))
             model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers)) == x[p, t])
             model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) == Cr_required[p] * (x[p, t] - Cu_removed[p, t]))
             model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) == Ni_required[p] * (x[p, t] - Cu_removed[p, t]))

@@ -36,29 +36,28 @@ def define_model(n_products, n_suppliers, n_months, tolerance=1e-6):
     return model, x, I, z, y, Cu_removed
 
 # Pass data to the model and solve
-# Update the constraint in set_data_and_solve function
 def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, supplier_costs,
                        capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, CopperLimit, Cu):
+    """
+    Set data into the model and add relevant constraints, then solve it.
+    """
     n_products = len(demand)
     n_suppliers = len(supplier_costs)
     n_months = len(demand[0])
 
-    # Set the objective function
+    # Set the objective function: minimize inventory holding costs, procurement costs, and electrolysis costs
     objective = gp.quicksum(holding_costs[p] * I[p, t] for p in range(n_products) for t in range(n_months)) + \
-                gp.quicksum(
-                    supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in
-                    range(n_months)) + \
-                gp.quicksum(
-                    100 * y[t] + 5 * gp.quicksum(Cu_removed[p, t] for p in range(n_products)) for t in range(n_months))
-
+                gp.quicksum(supplier_costs[s] * z[p, s, t] for p in range(n_products) for s in range(n_suppliers) for t in range(n_months)) + \
+                gp.quicksum(100 * y[t] + 5 * gp.quicksum(Cu_removed[p, t] for p in range(n_products)) for t in range(n_months))
     model.setObjective(objective, GRB.MINIMIZE)
 
+    # Demand satisfaction constraints
     for p in range(n_products):
         for t in range(n_months):
             if t == 0:
-                model.addConstr((x[p, t] - Cu_removed[p, t]) == demand[p][t] + I[p, t])
+                model.addConstr(x[p, t] == demand[p][t] + I[p, t])
             else:
-                model.addConstr((x[p, t] - Cu_removed[p, t]) + I[p, t - 1] == demand[p][t] + I[p, t])
+                model.addConstr(x[p, t] + I[p, t - 1] == demand[p][t] + I[p, t])
 
     for t in range(n_months):
         model.addConstr(gp.quicksum(x[p, t] for p in range(n_products)) <= capacity[t])
@@ -69,16 +68,10 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
 
     for t in range(n_months):
         for p in range(n_products):
-            model.addConstr(
-                gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)) - Cu_removed[p, t] <= CopperLimit * (
-                            x[p, t] - Cu_removed[p, t]))
-            model.addConstr(Cu_removed[p, t] <= y[t] * 10000)
-            model.addConstr(Cu_removed[p, t] <= gp.quicksum(Cu[s] * z[p, s, t] for s in range(n_suppliers)))
+            model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) == Cr_required[p] * x[p, t])
+            model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) == Ni_required[p] * x[p, t])
             model.addConstr(gp.quicksum(z[p, s, t] for s in range(n_suppliers)) == x[p, t])
-            model.addConstr(gp.quicksum(Cr[s] * z[p, s, t] for s in range(n_suppliers)) == Cr_required[p] * (
-                        x[p, t] - Cu_removed[p, t]))
-            model.addConstr(gp.quicksum(Ni[s] * z[p, s, t] for s in range(n_suppliers)) == Ni_required[p] * (
-                        x[p, t] - Cu_removed[p, t]))
+
     model.optimize()
 
     # Output results
@@ -86,8 +79,6 @@ def set_data_and_solve(model, x, I, z, y, Cu_removed, demand, holding_costs, sup
         return model.objVal, True
     else:
         return None, False
-
-# Ensure CopperLimit is passed as a scalar in find_min_copper_limit function
 
 def find_min_copper_limit(demand, holding_costs, supplier_costs, capacity, supply_limit, Cr, Ni, Cr_required, Ni_required, Cu, original_obj_val):
     """
